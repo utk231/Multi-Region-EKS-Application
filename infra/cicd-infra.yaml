@@ -203,6 +203,8 @@ Resources:
             Value: !Sub 'Multi-Region-EKS-${AWS::Region}-Cluster'
           - Name: EKS_KUBECTL_ROLE_ARN
             Value: !Sub arn:aws:iam::${AWS::AccountId}:role/EksCodeBuildKubectlRole-${AWS::Region}
+          - Name: EKS_CLUSTER_REGION
+            Value: !Ref "AWS::Region"
       Name: !Ref AWS::StackName
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
 
