@@ -1,0 +1,248 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Multi-Region-EKS-Application-CICD
+Parameters:
+
+  GitSourceRepo:
+    Type: String
+    Description: GitHub source repository
+    Default: Multi-Region-EKS-Application
+    MinLength: 1
+    MaxLength: 100
+    ConstraintDescription: You must enter a GitHub repository name
+
+  GitBranch:
+    Type: String
+    Default: master
+    Description: GitHub git repository branch - change triggers a new build
+    MinLength: 1
+    MaxLength: 100
+    ConstraintDescription: You must enter a GitHub repository branch name
+
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: GitHub API token
+    MinLength: 3
+    MaxLength: 100
+    ConstraintDescription: You must enter a GitHub personal access token
+
+  GitHubUser:
+    Type: String
+    Description: GitHub username or organization
+    MinLength: 3
+    MaxLength: 100
+    ConstraintDescription: You must enter a GitHub username or organization
+
+  CodeBuildDockerImage:
+    Type: String
+    Default: aws/codebuild/standard:4.0
+    Description: Default AWS CodeBuild image for Ubuntu 18.04
+    MinLength: 3
+    MaxLength: 100
+    ConstraintDescription: You must enter a CodeBuild Docker image
+
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: GitHub
+        Parameters:
+          - GitHubUser
+          - GitHubToken
+          - GitSourceRepo
+          - GitBranch
+      - Label:
+          default: CodeBuild
+        Parameters:
+          - CodeBuildDockerImage
+    ParameterLabels:
+      GitHubUser:
+        default: Username
+      GitHubToken:
+        default: Access token
+      GitSourceRepo:
+        default: Repository
+      GitBranch:
+        default: Branch
+      CodeBuildDockerImage:
+        default: Docker image
+
+
+
+Resources:
+
+  CodePipelineArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub 'multi-region-eks-${AWS::Region}-artifact-bucket'
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub 'CodePipeline-Access-Policy-${AWS::Region}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:UploadArchive
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:CancelUploadArchive
+                  - iam:PassRole
+              - Resource: !Sub arn:aws:s3:::${CodePipelineArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+    DependsOn: CodePipelineArtifactBucket
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Description: "Role used by codebuild Service"
+      RoleName: !Sub 'Multi-Region-EKS-CodeBuildServiceRole-${AWS::Region}'
+      Policies:
+        - PolicyName: !Sub 'kubernetes-root-policy-${AWS::Region}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/EksCodeBuildKubectlRole-${AWS::Region}
+                Effect: Allow
+                Action:
+                  - sts:AssumeRole
+              - Resource: '*'
+                Effect: Allow
+                Action:
+                  - eks:Describe*
+              - Resource: '*'
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              - Resource: '*'
+                Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeDhcpOptions
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeVpcs
+                  - ec2:CreateNetworkInterfacePermission
+              - Resource: !Sub arn:aws:s3:::${CodePipelineArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+
+  EksCodeBuildkubectlRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt CodeBuildServiceRole.Arn
+            Action: sts:AssumeRole
+      RoleName: !Sub 'EksCodeBuildKubectlRole-${AWS::Region}'
+      Description: "Role assumed by codebuild Service Role"
+    DependsOn: CodeBuildServiceRole
+     
+             
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Type: LINUX_CONTAINER
+        Image: !Ref CodeBuildDockerImage
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: REPOSITORY_NAME
+            Value: !Ref GitSourceRepo
+          - Name: REPOSITORY_BRANCH
+            Value: !Ref GitBranch
+          - Name: EKS_CLUSTER_NAME
+            Value: !Sub 'Multi-Region-EKS-${AWS::Region}-Cluster'
+          - Name: EKS_KUBECTL_ROLE_ARN
+            Value: !Sub arn:aws:iam::${AWS::AccountId}:role/EksCodeBuildKubectlRole-${AWS::Region}
+      Name: !Ref AWS::StackName
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+
+  CodePipelineGitHub:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodePipelineArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: App
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              Configuration:
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitSourceRepo
+                Branch: !Ref GitBranch
+                OAuthToken: !Ref GitHubToken
+              OutputArtifacts:
+                - Name: App
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: App
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+    DependsOn: CodeBuildProject
