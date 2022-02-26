@@ -140,10 +140,6 @@ Resources:
               - Resource: '*'
                 Effect: Allow
                 Action:
-                  - eks:Describe*
-              - Resource: '*'
-                Effect: Allow
-                Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
@@ -177,7 +173,17 @@ Resources:
               AWS: !GetAtt CodeBuildServiceRole.Arn
             Action: sts:AssumeRole
       RoleName: !Sub 'EksCodeBuildKubectlRole-${AWS::Region}'
-      Description: "Role assumed by codebuild Service Role"
+      Policies:
+        - PolicyName: !Sub 'kubernetes-root-policy-${AWS::Region}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: '*'
+                Effect: Allow
+                Action:
+                  - eks:Describe*
+
+      Description: "Role used by codebuild Service Role for k8s"
     DependsOn: CodeBuildServiceRole
      
              
