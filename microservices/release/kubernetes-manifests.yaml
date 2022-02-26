@@ -293,7 +293,7 @@ kind: Service
 metadata:
   name: frontend-external
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: frontend
   ports:
@@ -301,6 +301,33 @@ spec:
     port: 80
     targetPort: 8080
 ---
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-alb
+  annotations:
+      kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/tags: auto-delete=no
+      # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:644659814164:certificate/e084017f-3baf-4d16-8b4c-e72ed4e65192
+      # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+      # alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-external
+            port:
+              number: 80
+  
+---        
 apiVersion: apps/v1
 kind: Deployment
 metadata:
