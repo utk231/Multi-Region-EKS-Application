@@ -217,6 +217,8 @@ spec:
         sidecar.istio.io/rewriteAppHTTPProbers: "true"
     spec:
       serviceAccountName: default
+      terminationGracePeriodSeconds: 70
+
       containers:
         - name: server
           image: gcr.io/google-samples/microservices-demo/frontend:v0.3.6
@@ -238,6 +240,10 @@ spec:
               httpHeaders:
               - name: "Cookie"
                 value: "shop_session-id=x-liveness-probe"
+          # lifecycle:          
+          #   preStop:
+          #     exec:
+          #       command: ["/bin/sh", "-c", "sleep 40"]   #Delays termination of pod from k8 end
           env:
           - name: PORT
             value: "8080"
@@ -293,7 +299,7 @@ kind: Service
 metadata:
   name: frontend-external
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: frontend
   ports:
