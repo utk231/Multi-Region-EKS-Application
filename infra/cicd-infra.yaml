@@ -254,3 +254,50 @@ Resources:
                 - Name: BuildOutput
               RunOrder: 1
     DependsOn: CodeBuildProject
+
+  Accelerator:
+    Type: AWS::GlobalAccelerator::Accelerator
+    Properties:
+      Name: Multi-Region-EKS
+      Enabled: true
+  Outputs:
+    AcceleratorDnsName:
+      Description: Accelerator DNS Name
+      Value:
+        Fn::GetAtt:
+        - Accelerator
+        - DnsName
+
+  Listener:
+    Type: AWS::GlobalAccelerator::Listener
+    Properties:
+      AcceleratorArn:
+        Ref: Accelerator
+      Protocol: TCP
+      PortRanges:
+      - FromPort: 80
+        ToPort: 80
+
+  EndpointGroupAPSE1:
+    Type: AWS::GlobalAccelerator::EndpointGroup
+    Properties:
+      ListenerArn:
+        Ref: Listener
+      EndpointGroupRegion:
+        Ref: EndpointRegion
+      TrafficDialPercentage: 100
+      EndpointConfigurations:
+      - EndpointId:
+          Ref: EndpointId
+
+  EndpointGroupAPSE2:
+    Type: AWS::GlobalAccelerator::EndpointGroup
+    Properties:
+      ListenerArn:
+        Ref: Listener
+      EndpointGroupRegion:
+        Ref: EndpointRegion
+      TrafficDialPercentage: 100
+      EndpointConfigurations:
+      - EndpointId:
+          Ref: EndpointId
