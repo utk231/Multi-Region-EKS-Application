@@ -20,6 +20,7 @@ phases:
 
   post_build:
     commands:
+      - echo $AWS_REGION
       - kubectl apply -f ./microservices/release/kubernetes-manifests-$AWS_REGION.yaml
       - Ingress=$(kubectl get ingress ingress-alb -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
       - echo $Ingress
