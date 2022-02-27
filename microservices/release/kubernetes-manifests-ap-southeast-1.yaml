@@ -321,9 +321,9 @@ metadata:
       external-dns.alpha.kubernetes.io/hostname: utkarssr.people.aws.dev
       external-dns.alpha.kubernetes.io/set-identifier: Failover 
       external-dns.alpha.kubernetes.io/aws-failover: PRIMARY
-      # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:644659814164:certificate/e084017f-3baf-4d16-8b4c-e72ed4e65192
-      # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
-      # alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-southeast-1:644659814164:certificate/fdda7ab9-dfda-437f-b244-e43b798568ea
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+      alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
 spec:
   rules:
   - http:
@@ -332,9 +332,15 @@ spec:
         pathType: Prefix
         backend:
           service:
+            name: ssl-redirect
+            port:
+              name: use-annotation
+      - backend:
+          service:
             name: frontend-external
             port:
               number: 80
+        pathType: ImplementationSpecific      
   
 ---        
 apiVersion: apps/v1
