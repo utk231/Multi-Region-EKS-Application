@@ -319,6 +319,8 @@ metadata:
       alb.ingress.kubernetes.io/target-type: ip
       alb.ingress.kubernetes.io/tags: auto-delete=no
       external-dns.alpha.kubernetes.io/hostname: utkarssr.people.aws.dev
+      external-dns.alpha.kubernetes.io/alias: "true"
+      external-dns.alpha.kubernetes.io/aws-health-check-id: 5cafe4a6-c242-4daf-b5d5-d7810bb9989d
       external-dns.alpha.kubernetes.io/set-identifier: Failover 
       external-dns.alpha.kubernetes.io/aws-failover: SECONDARY
       alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-southeast-2:644659814164:certificate/74fe5ecd-0632-4a13-970e-debd2be33535
