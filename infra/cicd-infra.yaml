@@ -142,11 +142,7 @@ Resources:
                 Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
-                  - logs:PutLogEvents
-              - Resource: '*'
-                Effect: Allow
-                Action:
-                  - globalaccelerator:*
+                  - logs:PutLogEvents      
               - Resource: '*'
                 Effect: Allow
                 Action:
@@ -186,6 +182,14 @@ Resources:
                 Effect: Allow
                 Action:
                   - eks:Describe*
+              - Resource: '*'
+                Effect: Allow
+                Action:
+                  - globalaccelerator:*
+              - Resource: '*'
+                Effect: Allow
+                Action:
+                  - elasticloadbalancing:DescribeLoadBalancers
 
       Description: "Role used by codebuild Service Role for k8s"
     DependsOn: CodeBuildServiceRole
