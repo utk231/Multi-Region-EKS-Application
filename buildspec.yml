@@ -26,7 +26,7 @@ phases:
       - INGRESS=$(kubectl get ingress ingress-alb -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
       - echo $INGRESS
       - |
-        if [ "$CURRENT_INGRESS" == "$INGRESS" ]
+        if [ "$CURRENT_INGRESS" == "$INGRESS" ]; then
           echo "All Records Up to date"
         elif [ $AWS_REGION = "ap-southeast-1" ]; then
           echo "Entering apse1"
