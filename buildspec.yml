@@ -20,7 +20,19 @@ phases:
 
   post_build:
     commands:
-      - echo $AWS_REGION
+      - CURRENT_INGRESS=$(kubectl get ingress ingress-alb -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+      - echo $CURRENT_INGRESS
       - kubectl apply -f ./microservices/release/kubernetes-manifests-$AWS_REGION.yaml
-      - Ingress=$(kubectl get ingress ingress-alb -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-      - echo $Ingress
+      - INGRESS=$(kubectl get ingress ingress-alb -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+      - echo $INGRESS
+      - |
+        if [ "$CURRENT_INGRESS" == "$INGRESS" ]
+          echo "All Records Up to date"
+        elif [ $AWS_REGION = "ap-southeast-1" ]; then
+          echo "Entering apse1"
+          ENDPOINT_GROUP_ARN=arn:aws:globalaccelerator::$ACCOUNT_ID:accelerator/a6c379cd-ae5b-4723-810b-ccd4215dc560/listener/9e92e0e9/endpoint-group/7d7b4aa69c00
+          aws globalaccelerator update-endpoint-group --region us-west-2 --endpoint-group-arn $ENDPOINT_GROUP_ARN --endpoint-configurations EndpointId=$(aws elbv2 describe-load-balancers --region $AWS_REGION --query "LoadBalancers[?contains(DNSName, '$Ingress')].LoadBalancerArn" --output text),Weight=128,ClientIPPreservationEnabled=True 
+        else
+          echo "Entering apse2"
+          ENDPOINT_GROUP_ARN=arn:aws:globalaccelerator::$ACCOUNT_ID:accelerator/a6c379cd-ae5b-4723-810b-ccd4215dc560/listener/9e92e0e9/endpoint-group/7a660b94b00c
+          aws globalaccelerator update-endpoint-group --region us-west-2 --endpoint-group-arn $ENDPOINT_GROUP_ARN --endpoint-configurations EndpointId=$(aws elbv2 describe-load-balancers --region $AWS_REGION --query "LoadBalancers[?contains(DNSName, '$Ingress')].LoadBalancerArn" --output text),Weight=128,ClientIPPreservationEnabled=True  
