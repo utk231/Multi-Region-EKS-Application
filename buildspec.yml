@@ -36,3 +36,4 @@ phases:
           echo "Entering apse2"
           ENDPOINT_GROUP_ARN=arn:aws:globalaccelerator::$ACCOUNT_ID:accelerator/a6c379cd-ae5b-4723-810b-ccd4215dc560/listener/9e92e0e9/endpoint-group/7a660b94b00c
           aws globalaccelerator update-endpoint-group --region us-west-2 --endpoint-group-arn $ENDPOINT_GROUP_ARN --endpoint-configurations EndpointId=$(aws elbv2 describe-load-balancers --region $AWS_REGION --query "LoadBalancers[?contains(DNSName, '$Ingress')].LoadBalancerArn" --output text),Weight=128,ClientIPPreservationEnabled=True  
+        fi
