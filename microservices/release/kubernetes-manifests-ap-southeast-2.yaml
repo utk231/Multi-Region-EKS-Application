@@ -491,10 +491,12 @@ spec:
             memory: 128Mi
         readinessProbe:
           initialDelaySeconds: 15
+          timeoutSeconds: 3         #increased to 3 for fixing probe issues
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:7070", "-rpc-timeout=5s"]
         livenessProbe:
           initialDelaySeconds: 15
+          timeoutSeconds: 3           #increased to 3 for fixing probe issues
           periodSeconds: 10
           exec:
             command: ["/bin/grpc_health_probe", "-addr=:7070", "-rpc-timeout=5s"]
