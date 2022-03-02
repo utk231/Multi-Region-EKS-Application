@@ -4,7 +4,7 @@
 Resources created from EKSCTL
 - IRSA (AWS LB Controller, Cluster Autoscaler, External DNS)
 
-Resources created from Helm/manifests manual
+Resources created from Helm/manifests/console
 - AWS LB Controller
 - External DNS
 - HPA
