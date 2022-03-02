@@ -11,6 +11,7 @@ phases:
       - unzip -qq awscliv2.zip
       - ./aws/install  
       - export PATH=$PWD/:$PATH
+      
 
   pre_build:
     commands:
@@ -27,6 +28,7 @@ phases:
       - CURRENT_INGRESS=$(kubectl get ingress ingress-alb -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
       - kubectl apply -f ./microservices/release/kubernetes-manifests-$AWS_REGION.yaml
       - INGRESS=$(kubectl get ingress ingress-alb -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
 
   post_build:
     commands:
