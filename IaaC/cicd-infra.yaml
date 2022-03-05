@@ -38,9 +38,19 @@ Parameters:
     Type: String
     Default: aws/codebuild/standard:4.0
     Description: Default AWS CodeBuild image for Ubuntu 18.04
-    MinLength: 3
-    MaxLength: 100
     ConstraintDescription: You must enter a CodeBuild Docker image
+  
+  PASSIVEDOMAIN:
+    Type: String
+    Description: Domain Name for Active/Passive arch
+    ConstraintDescription: You must enter the passive domain name
+  
+  HOSTEDZONEID:
+    Type: String
+    Description: Hosted Zone ID
+    MinLength: 1
+    MaxLength: 100
+    ConstraintDescription: You must enter a hosted zone ID
 
 
 Metadata:
@@ -189,6 +199,11 @@ Resources:
               - Resource: '*'
                 Effect: Allow
                 Action:
+                  - route53:*
+                  - route53domains:*
+              - Resource: '*'
+                Effect: Allow
+                Action:
                   - elasticloadbalancing:DescribeLoadBalancers
 
       Description: "Role used by codebuild Service Role for k8s"
@@ -219,6 +234,10 @@ Resources:
             Value: !Sub arn:aws:iam::${AWS::AccountId}:role/EksCodeBuildKubectlRole-${AWS::Region}
           - Name: EKS_CLUSTER_REGION
             Value: !Ref "AWS::Region"
+          - Name: PASSIVE_DOMAIN
+            Value: !Ref PASSIVEDOMAIN
+          - Name: HOSTED_ZONE_ID
+            Value: !Ref "HOSTEDZONEID"
           - Name: ACCOUNT_ID
             Value: !Ref AWS::AccountId
       Name: !Ref AWS::StackName

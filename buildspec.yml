@@ -11,7 +11,7 @@ phases:
       - unzip -qq awscliv2.zip
       - ./aws/install  
       - export PATH=$PWD/:$PATH
-      
+
 
   pre_build:
     commands:
@@ -29,18 +29,79 @@ phases:
       - kubectl apply -f ./microservices/release/kubernetes-manifests-$AWS_REGION.yaml
       - INGRESS=$(kubectl get ingress ingress-alb -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 
-
   post_build:
     commands:
       - |
         if [ "$CURRENT_INGRESS" = "$INGRESS" ]; then
-          echo "All Records Up to date"
+          echo "Ingress ALB not recreated, All Records Up to date"
         elif [ $AWS_REGION = "ap-southeast-1" ]; then
           echo "Entering apse1"
+          echo "Updating Global Accelerator Endpoint Group"
           ENDPOINT_GROUP_ARN=arn:aws:globalaccelerator::$ACCOUNT_ID:accelerator/a6c379cd-ae5b-4723-810b-ccd4215dc560/listener/9e92e0e9/endpoint-group/7d7b4aa69c00
           aws globalaccelerator update-endpoint-group --region us-west-2 --endpoint-group-arn $ENDPOINT_GROUP_ARN --endpoint-configurations EndpointId=$(aws elbv2 describe-load-balancers --region $AWS_REGION --query "LoadBalancers[?contains(DNSName, '$Ingress')].LoadBalancerArn" --output text),Weight=128,ClientIPPreservationEnabled=True 
+          echo "Updated Global Accelerator Endpoint Group"
+
+          aws route53 update-health-check --health-check-id 15a9c168-0ab3-4751-bb9a-8fa3be56b598 --fully-qualified-domain-name $INGRESS
+
+          cat >./failover-$AWS_REGION.json <<EOF
+          {
+            "Comment": "Update R53 Record",
+            "Changes": [
+              {
+                "Action": "UPSERT",
+                "ResourceRecordSet": {
+                  "Name": "$PASSIVE_DOMAIN",
+                  "Type": "A",
+                  "SetIdentifier": "Primary",
+                  "Failover": "PRIMARY",
+                  "AliasTarget": {
+                    "HostedZoneId": "Z1LMS91P8CMLE5",
+                    "DNSName": "dualstack.$INGRESS.",
+                    "EvaluateTargetHealth": true
+                  },
+                  "HealthCheckId": "15a9c168-0ab3-4751-bb9a-8fa3be56b598"
+                }
+              }
+            ]
+          }
+          EOF
+
+          echo "Updating Route53 Records in apse1"
+          aws route53 change-resource-record-sets --hosted-zone-id $HOSTED_ZONE_ID --change-batch file://failover-$AWS_REGION.json
+        
+
         else
           echo "Entering apse2"
+          echo "Updating Global Accelerator Endpoint Group"
           ENDPOINT_GROUP_ARN=arn:aws:globalaccelerator::$ACCOUNT_ID:accelerator/a6c379cd-ae5b-4723-810b-ccd4215dc560/listener/9e92e0e9/endpoint-group/7a660b94b00c
           aws globalaccelerator update-endpoint-group --region us-west-2 --endpoint-group-arn $ENDPOINT_GROUP_ARN --endpoint-configurations EndpointId=$(aws elbv2 describe-load-balancers --region $AWS_REGION --query "LoadBalancers[?contains(DNSName, '$Ingress')].LoadBalancerArn" --output text),Weight=128,ClientIPPreservationEnabled=True  
+          echo "Updated Global Accelerator Endpoint Group"
+
+          aws route53 update-health-check --health-check-id 8d3e4c89-661b-48fe-8671-ec5745ccefec --fully-qualified-domain-name $INGRESS
+
+          cat >./failover-$AWS_REGION.json <<EOF
+          {
+            "Comment": "Update R53 Record",
+            "Changes": [
+              {
+                "Action": "UPSERT",
+                "ResourceRecordSet": {
+                  "Name": "$PASSIVE_DOMAIN",
+                  "Type": "A",
+                  "SetIdentifier": "Secondary",
+                  "Failover": "SECONDARY",
+                  "AliasTarget": {
+                    "HostedZoneId": "Z1GM3OXH4ZPM65",
+                    "DNSName": "dualstack.$INGRESS.",
+                    "EvaluateTargetHealth": true
+                  },
+                  "HealthCheckId": "8d3e4c89-661b-48fe-8671-ec5745ccefec"
+                }
+              }
+            ]
+          }
+          EOF
+
+          echo "Updating Route53 Records in apse2"
+          aws route53 change-resource-record-sets --hosted-zone-id $HOSTED_ZONE_ID --change-batch file://failover-$AWS_REGION.json
         fi
